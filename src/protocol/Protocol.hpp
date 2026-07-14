@@ -16,6 +16,8 @@
 
 namespace protocol {
 
+constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 using Handler = std::function<void(std::string&)>;
 
 class IProtocol {
@@ -36,14 +38,24 @@ class AProtocol : public IProtocol {
     protected:
         void processLine(std::string& line) final; 
 
-        bool running = true;
+        //TODO: add engine when class is done
         std::unordered_map<std::string, Handler> protocolMap;
+        bool running = true;
+        bool debug = false;
 };
 
 class UCI : public AProtocol {
     public:
         UCI();
         ~UCI() = default;
+
+    private:
+        static void setoption(std::string&);
+        static void ucinewgame(std::string&);
+        static void position(std::string&);
+        static void go(std::string&);
+        static void stop(std::string&);
+        static void ponderhit(std::string&);
 };
 
 class ProtocolFactory {
