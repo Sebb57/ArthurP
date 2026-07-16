@@ -2,7 +2,7 @@
  * @file main.cpp
  * @brief main entrypoint
  *
- * @author Your Name
+ * @author Seb
  * @date 2026-07-14
 **/
 

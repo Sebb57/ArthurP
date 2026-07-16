@@ -9,6 +9,7 @@
 #ifndef PROTOCOL_HPP_
 #define PROTOCOL_HPP_
 
+#include "engine/Engine.hpp"
 #include <functional>
 #include <memory>
 #include <string>
@@ -38,10 +39,10 @@ class AProtocol : public IProtocol {
     protected:
         void processLine(std::string& line) final; 
 
-        //TODO: add engine when class is done
+        engine::Engine engine;
         std::unordered_map<std::string, Handler> protocolMap;
         bool running = true;
-        bool debug = false;
+        bool debugRun = false;
 };
 
 class UCI : public AProtocol {
@@ -50,12 +51,13 @@ class UCI : public AProtocol {
         ~UCI() = default;
 
     private:
-        static void setoption(std::string&);
-        static void ucinewgame(std::string&);
-        static void position(std::string&);
-        static void go(std::string&);
-        static void stop(std::string&);
-        static void ponderhit(std::string&);
+        void debug(std::string&);
+        void setoption(std::string&);
+        void ucinewgame(std::string&);
+        void position(std::string&);
+        void go(std::string&);
+        void stop(std::string&);
+        void ponderhit(std::string&);
 };
 
 class ProtocolFactory {
