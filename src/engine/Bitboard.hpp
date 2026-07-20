@@ -16,7 +16,7 @@ namespace engine {
 
 using bitboardType = uint64_t;
 
-enum pieceType {
+enum piecePromotion {
     QUEEN,
     ROOK,
     BISHOP,
@@ -33,10 +33,11 @@ struct Move {
     std::string from;
     std::string to;
 
-    pieceType promotionIndex;
+    piecePromotion promotionPiece;
     bool promotion;
 
     bool capture;
+    bool castle;
 };
 
 class Bitboard {
@@ -47,6 +48,7 @@ class Bitboard {
         std::string bitToSquare(int bit);
         int squareToBit(const std::string& square);
 
+        void printBoard(); //debug
         void loadFEN(const std::string& fen);
         void makeMove(const Move& move);
 
