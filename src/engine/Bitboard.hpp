@@ -33,11 +33,11 @@ struct Move {
     std::string from;
     std::string to;
 
-    piecePromotion promotionPiece;
-    bool promotion;
+    piecePromotion promotionPiece = QUEEN;
+    bool promotion = false;
 
-    bool capture;
-    bool castle;
+    bool capture = false;
+    bool castle = false;
 };
 
 class Bitboard {
@@ -93,4 +93,3 @@ class Bitboard {
 }
 
 #endif /* BITBOARD_HPP_ */
-

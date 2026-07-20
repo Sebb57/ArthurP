@@ -8,6 +8,7 @@
 
 #include "Bitboard.hpp"
 #include "utils/utils.hpp"
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -31,6 +32,17 @@ constexpr engine::Piece fenToPiece(char c) {
         case 'k': return engine::BK;
 
         default:  return engine::EMPTY;
+    }
+}
+
+constexpr engine::Piece promotionToPiece(engine::Piece moving, engine::piecePromotion promotion)
+{
+    switch (promotion) {
+        case engine::QUEEN:  return moving == engine::WP ? engine::WQ : engine::BQ;
+        case engine::ROOK:   return moving == engine::WP ? engine::WR : engine::BR;
+        case engine::BISHOP: return moving == engine::WP ? engine::WB : engine::BB;
+        case engine::KNIGHT: return moving == engine::WP ? engine::WN : engine::BN;
+        default:             return moving;
     }
 }
 
@@ -71,20 +83,44 @@ bool engine::Bitboard::getBit(uint64_t bb, int sq)
 
 void engine::Bitboard::makeMove(const Move& move)
 {
-    //TODO: handle move->castle case, the move var will countain the king move and it should move the rook to
     int from     = squareToBit(move.from);
     int to       = squareToBit(move.to);
     Piece moving = board[from];
 
     if (moving == EMPTY)
         return;
+
     clearBit(pieces[moving], from);
+
+    if (move.castle) {
+        int rookFrom = -1;
+        int rookTo   = -1;
+        Piece rook   = moving == WK ? WR : BR;
+
+        if (to > from) {
+            rookFrom = moving == WK ? squareToBit("h1") : squareToBit("h8");
+            rookTo   = moving == WK ? squareToBit("f1") : squareToBit("f8");
+        } else {
+            rookFrom = moving == WK ? squareToBit("a1") : squareToBit("a8");
+            rookTo   = moving == WK ? squareToBit("d1") : squareToBit("d8");
+        }
+
+        clearBit(pieces[rook], rookFrom);
+        setBit(pieces[rook], rookTo);
+        board[rookTo] = rook;
+        board[rookFrom] = EMPTY;
+    }
 
     if (move.capture)
         clearBit(pieces[board[to]], to);
-    setBit(pieces[moving], to);
 
-    board[to] = moving;
+    Piece placedPiece = moving;
+    if (move.promotion)
+        placedPiece = promotionToPiece(moving, move.promotionPiece);
+
+    setBit(pieces[placedPiece], to);
+
+    board[to] = placedPiece;
     board[from] = EMPTY;
     whitePieces = pieces[WP] | pieces[WN] | pieces[WB] | pieces[WR] | pieces[WQ] | pieces[WK];
     blackPieces = pieces[BP] | pieces[BN] | pieces[BB] | pieces[BR] | pieces[BQ] | pieces[BK];
@@ -163,4 +199,3 @@ void engine::Bitboard::printBoard()
         std::cout << "  a b c d e f g h" << std::endl << std::endl;
     }
 }
-
