@@ -45,8 +45,8 @@ class Bitboard {
         Bitboard() = default;
         ~Bitboard() = default;
     
-        std::string bitToSquare(int bit);
-        int squareToBit(const std::string& square);
+        std::string bitToSquare(int bit) const;
+        int squareToBit(const std::string& square) const;
 
         void printBoard(); //debug
         void loadFEN(const std::string& fen);
@@ -54,7 +54,15 @@ class Bitboard {
 
         void setBit(bitboardType& bb, int sq);
         void clearBit(bitboardType& bb, int sq);
-        bool getBit(bitboardType bb, int sq);
+        bool getBit(bitboardType bb, int sq) const;
+        Piece getPieceAt(int sq) const;
+        Piece getPieceAt(const std::string& square) const;
+
+        bitboardType getPieceBitboard(Piece piece) const;
+        bitboardType getWhitePieces() const;
+        bitboardType getBlackPieces() const;
+        bitboardType getOccupied() const;
+        bitboardType getEmpty() const;
     private:
         bitboardType pieces[13] = {
             0x0000000000000000ULL, // EMPTY

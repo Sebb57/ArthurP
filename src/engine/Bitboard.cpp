@@ -48,7 +48,7 @@ constexpr engine::Piece promotionToPiece(engine::Piece moving, engine::pieceProm
 
 }
 
-int engine::Bitboard::squareToBit(const std::string& square)
+int engine::Bitboard::squareToBit(const std::string& square) const
 {
     char file     = square[0];
     char rank     = square[1];
@@ -58,7 +58,7 @@ int engine::Bitboard::squareToBit(const std::string& square)
     return rankIndex * 8 + fileIndex;
 }
 
-std::string engine::Bitboard::bitToSquare(int bit)
+std::string engine::Bitboard::bitToSquare(int bit) const
 {
     char file = 'a' + (bit % 8);
     char rank = '1' + (bit / 8);
@@ -76,9 +76,44 @@ void engine::Bitboard::clearBit(uint64_t& bb, int sq)
     bb &= ~(1ULL << sq);
 }
 
-bool engine::Bitboard::getBit(uint64_t bb, int sq)
+bool engine::Bitboard::getBit(uint64_t bb, int sq) const
 {
     return bb & (1ULL << sq);
+}
+
+engine::Piece engine::Bitboard::getPieceAt(int sq) const
+{
+    return board[sq];
+}
+
+engine::Piece engine::Bitboard::getPieceAt(const std::string& square) const
+{
+    return board[squareToBit(square)];
+}
+
+engine::bitboardType engine::Bitboard::getPieceBitboard(Piece piece) const
+{
+    return pieces[piece];
+}
+
+engine::bitboardType engine::Bitboard::getWhitePieces() const
+{
+    return whitePieces;
+}
+
+engine::bitboardType engine::Bitboard::getBlackPieces() const
+{
+    return blackPieces;
+}
+
+engine::bitboardType engine::Bitboard::getOccupied() const
+{
+    return occupied;
+}
+
+engine::bitboardType engine::Bitboard::getEmpty() const
+{
+    return empty;
 }
 
 void engine::Bitboard::makeMove(const Move& move)
@@ -111,7 +146,7 @@ void engine::Bitboard::makeMove(const Move& move)
         board[rookFrom] = EMPTY;
     }
 
-    if (move.capture)
+    if (board[to] != EMPTY)
         clearBit(pieces[board[to]], to);
 
     Piece placedPiece = moving;

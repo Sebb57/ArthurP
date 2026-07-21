@@ -43,6 +43,7 @@ class AProtocol : public IProtocol {
         std::unordered_map<std::string, Handler> protocolMap;
         bool running = true;
         bool debugRun = false;
+        bool whiteToMove = true;
 };
 
 class UCI : public AProtocol {
@@ -82,4 +83,3 @@ class ProtocolFactory {
 }
 
 #endif /* PROTOCOL_HPP_ */
-
