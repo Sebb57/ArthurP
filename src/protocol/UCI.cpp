@@ -12,16 +12,7 @@
 #include <sstream>
 #include <vector>
 
-//TODO: place this inside protocol.hpp 
 namespace {
-
-template <typename T, auto Member>
-auto bindMember(T* obj)
-{
-    return [obj](std::string& arg) {
-        (obj->*Member)(arg);
-    };
-}
 
 engine::Move parseUciMove(const std::string& text, const engine::Engine& boardEngine)
 {

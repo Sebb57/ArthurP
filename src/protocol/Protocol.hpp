@@ -21,6 +21,14 @@ constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 
 
 using Handler = std::function<void(std::string&)>;
 
+template <typename T, auto Member>
+auto bindMember(T* obj)
+{
+    return [obj](std::string& arg) {
+        (obj->*Member)(arg);
+    };
+}
+
 class IProtocol {
     public:
         virtual ~IProtocol() = default;
