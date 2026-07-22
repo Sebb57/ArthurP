@@ -17,7 +17,9 @@ namespace engine {
 
 class MoveGenerator {
     public:
-        std::vector<Move> generatePawnMoves(const Bitboard& board, bool whiteToMove) const;
+        std::vector<Move> generateLegalMoves(const Bitboard& board, bool whiteToMove) const;
+    private:
+        std::vector<Move> generatePawnMoves(const Bitboard& board, bool whiteToMove, std::vector<Move>& moves) const;
 };
 
 }

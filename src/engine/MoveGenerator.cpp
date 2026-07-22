@@ -7,26 +7,42 @@
 **/
 
 #include "MoveGenerator.hpp"
+#include "engine/Bitboard.hpp"
+#include <vector>
 
 namespace {
 
-void addPromotionMoves(std::vector<engine::Move>& moves, const std::string& from, const std::string& to)
+bool kingInCheck(const engine::Bitboard& board, bool whiteToMove)
 {
-    for (engine::piecePromotion promotion : { engine::QUEEN, engine::ROOK, engine::BISHOP, engine::KNIGHT }) {
-        engine::Move move;
-        move.from = from;
-        move.to = to;
-        move.promotion = true;
-        move.promotionPiece = promotion;
-        moves.push_back(move);
-    }
+    (void) board; 
+    (void)whiteToMove;
+    return false;
 }
 
+bool isLegalAfterMove(const engine::Bitboard& board, const engine::Move& move, bool whiteToMove)
+{
+    engine::Bitboard nextBoard = board;
+
+    nextBoard.makeMove(move);
+    return !kingInCheck(nextBoard, whiteToMove);
 }
 
-std::vector<engine::Move> engine::MoveGenerator::generatePawnMoves(const Bitboard& board, bool whiteToMove) const
+} // anonymous namespace 
+
+std::vector<engine::Move> engine::MoveGenerator::generateLegalMoves(const Bitboard& board, bool whiteToMove) const
 {
-    std::vector<Move> moves;
+    std::vector<engine::Move> moves;
+
+    this->generatePawnMoves(board, whiteToMove, moves);
+
+    return moves;
+}
+
+std::vector<engine::Move> engine::MoveGenerator::generatePawnMoves(
+    const Bitboard& board, 
+    bool whiteToMove, 
+    std::vector<Move>& moves) const
+{
     const Piece pawnPiece = whiteToMove ? WP : BP;
     const bitboardType pawns = board.getPieceBitboard(pawnPiece);
     const bitboardType occupied = board.getOccupied();
@@ -44,19 +60,30 @@ std::vector<engine::Move> engine::MoveGenerator::generatePawnMoves(const Bitboar
 
         if (oneStep >= 0 && oneStep < 64 && !board.getBit(occupied, oneStep)) {
             if (rank == promotionRank) {
-                addPromotionMoves(moves, board.bitToSquare(sq), board.bitToSquare(oneStep));
+                for (engine::piecePromotion promotion : { engine::QUEEN, engine::ROOK, engine::BISHOP, engine::KNIGHT }) {
+                    Move move;
+                    move.from = board.bitToSquare(sq);
+                    move.to = board.bitToSquare(oneStep);
+                    move.promotion = true;
+                    move.promotionPiece = promotion;
+
+                    if (isLegalAfterMove(board, move, whiteToMove))
+                        moves.push_back(move);
+                }
             } else {
                 Move move;
                 move.from = board.bitToSquare(sq);
                 move.to = board.bitToSquare(oneStep);
-                moves.push_back(move);
+                if (isLegalAfterMove(board, move, whiteToMove))
+                    moves.push_back(move);
 
                 const int twoStep = sq + doubleForward;
                 if (rank == startRank && twoStep >= 0 && twoStep < 64 && !board.getBit(occupied, twoStep)) {
                     Move doublePush;
                     doublePush.from = board.bitToSquare(sq);
                     doublePush.to = board.bitToSquare(twoStep);
-                    moves.push_back(doublePush);
+                    if (isLegalAfterMove(board, doublePush, whiteToMove))
+                        moves.push_back(doublePush);
                 }
             }
         }

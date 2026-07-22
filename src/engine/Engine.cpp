@@ -13,7 +13,7 @@
 
 namespace {
 
-char promotionToUciChar(engine::piecePromotion promotion)
+constexpr char promotionToUciChar(engine::piecePromotion promotion)
 {
     switch (promotion) {
         case engine::QUEEN:  return 'q';
@@ -24,7 +24,7 @@ char promotionToUciChar(engine::piecePromotion promotion)
     }
 }
 
-std::string moveToText(const engine::Move& move)
+constexpr std::string moveToText(const engine::Move& move)
 {
     std::string text = move.from + move.to;
     if (move.promotion) {
@@ -40,7 +40,7 @@ std::string moveToText(const engine::Move& move)
 std::string engine::Engine::search(int n, bool whiteToMove)
 {
     (void)n;
-    const std::vector<Move> moves = this->generator.generatePawnMoves(this->board, whiteToMove);
+    const std::vector<Move> moves = this->generator.generateLegalMoves(this->board, whiteToMove);
 
     if (moves.empty())
         return "";
