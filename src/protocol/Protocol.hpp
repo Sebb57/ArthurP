@@ -17,8 +17,6 @@
 
 namespace protocol {
 
-constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
 using Handler = std::function<void(std::string&)>;
 
 template <typename T, auto Member>
@@ -51,7 +49,6 @@ class AProtocol : public IProtocol {
         std::unordered_map<std::string, Handler> protocolMap;
         bool running = true;
         bool debugRun = false;
-        bool whiteToMove = true;
 };
 
 class UCI : public AProtocol {
@@ -88,6 +85,6 @@ class ProtocolFactory {
         };
 };
     
-}
+} // namespace protocol
 
 #endif /* PROTOCOL_HPP_ */

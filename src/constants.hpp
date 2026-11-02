@@ -12,7 +12,7 @@
 namespace constants {
     inline constexpr int SUCCESS = 0;
     inline constexpr int FAILURE = -1;
-}
+} // namespace constants
 
 #endif /* CONSTANTS_HPP_ */
 

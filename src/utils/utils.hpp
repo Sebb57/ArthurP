@@ -19,7 +19,7 @@ class Helpers {
         static std::vector<std::string> splitString(const std::string& input, std::string_view delimiter);
 };
 
-}
+} // namespace utils
 
 #endif /* UTILS_HPP_ */
 
