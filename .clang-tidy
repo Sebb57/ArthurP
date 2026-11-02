@@ -1,0 +1,61 @@
+# Usage:
+#   cmake -B build && run-clang-tidy -p build -quiet
+#   clang-tidy -p build src/engine/moveGeneration/MoveGenerator.cpp
+
+Checks:
+  - -*
+  - bugprone-*
+  - clang-analyzer-*
+  - concurrency-*
+  - cppcoreguidelines-*
+  - misc-*
+  - modernize-*
+  - performance-*
+  - portability-*
+  - readability-*
+  - llvm-namespace-comment
+
+  - -bugprone-easily-swappable-parameters
+  - -readability-identifier-length
+  - -readability-magic-numbers
+  - -cppcoreguidelines-avoid-magic-numbers
+  - -cppcoreguidelines-pro-bounds-constant-array-index
+  - -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access
+  - -cppcoreguidelines-use-enum-class
+  - -performance-avoid-endl
+  - -readability-braces-around-statements
+  - -readability-math-missing-parentheses
+  - -modernize-use-trailing-return-type
+  - -misc-no-recursion
+
+HeaderFilterRegex: ".*/src/.*"
+FormatStyle: none
+
+ExtraArgs:
+  - -Wno-deprecated-ofast
+
+CheckOptions:
+  llvm-namespace-comment.ShortNamespaceLines: 0
+  llvm-namespace-comment.SpacesBeforeComments: 1
+  bugprone-signed-bitwise.IgnorePositiveIntegerLiterals: true
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
+  cppcoreguidelines-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
+  readability-function-cognitive-complexity.IgnoreMacros: true
+  readability-implicit-bool-conversion.UseUpperCaseLiteralSuffix: true
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: UPPER_CASE
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.MemberCase: camelBack
+  readability-identifier-naming.GlobalConstantCase: UPPER_CASE
+  readability-identifier-naming.ClassConstantCase: UPPER_CASE
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
+  readability-identifier-naming.MacroDefinitionIgnoredRegexp: "^[A-Z0-9_]+_HPP_$"
+  readability-identifier-naming.IgnoreMainLikeFunctions: true
