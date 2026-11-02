@@ -6,12 +6,16 @@
  * @date 2026-07-16
 **/
 
-#include "Bitboard.hpp"
-#include "utils/utils.hpp"
-#include <algorithm>
-#include <string>
-#include <vector>
+#include "engine/Bitboard.hpp"
+#include "engine/Types.hpp"
+#include <array>
+#include <cctype>
+#include <cstdlib>
+#include <initializer_list>
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <string_view>
 
 namespace {
 
@@ -35,189 +39,155 @@ constexpr engine::Piece fenToPiece(char c) {
     }
 }
 
-constexpr engine::Piece promotionToPiece(engine::Piece moving, engine::piecePromotion promotion)
+constexpr engine::CastlingRights fenToCastlingRight(char c)
 {
-    switch (promotion) {
-        case engine::QUEEN:  return moving == engine::WP ? engine::WQ : engine::BQ;
-        case engine::ROOK:   return moving == engine::WP ? engine::WR : engine::BR;
-        case engine::BISHOP: return moving == engine::WP ? engine::WB : engine::BB;
-        case engine::KNIGHT: return moving == engine::WP ? engine::WN : engine::BN;
-        default:             return moving;
+    switch (c) {
+        case 'K': return engine::WHITE_KINGSIDE;
+        case 'Q': return engine::WHITE_QUEENSIDE;
+        case 'k': return engine::BLACK_KINGSIDE;
+        case 'q': return engine::BLACK_QUEENSIDE;
+        default:  return engine::NO_CASTLING;
     }
 }
 
+} // namespace
+
+engine::Bitboard::Bitboard()
+{
+    loadFEN(START_FEN);
 }
 
-int engine::Bitboard::squareToBit(const std::string& square) const
+void engine::Bitboard::clear()
 {
-    char file     = square[0];
-    char rank     = square[1];
-    int fileIndex = file - 'a';
-    int rankIndex = rank - '1';
-
-    return rankIndex * 8 + fileIndex;
+    pieces.fill(0);
+    colorPieces.fill(0);
+    occupied = 0;
+    board.fill(EMPTY);
+    sideToMove = WHITE;
+    castlingRights = NO_CASTLING;
+    enPassantSquare = NO_SQUARE;
 }
 
-std::string engine::Bitboard::bitToSquare(int bit) const
+void engine::Bitboard::putPiece(Piece piece, Square sq)
 {
-    char file = 'a' + (bit % 8);
-    char rank = '1' + (bit / 8);
-
-    return std::string{file, rank};
+    board[sq] = piece;
+    setBit(pieces[piece], sq);
+    setBit(colorPieces[pieceColor(piece)], sq);
+    setBit(occupied, sq);
 }
 
-void engine::Bitboard::setBit(uint64_t& bb, int sq)
+void engine::Bitboard::removePiece(Square sq)
 {
-    bb |= 1ULL << sq;
+    const Piece piece = board[sq];
+
+    if (piece == EMPTY)
+        return;
+    board[sq] = EMPTY;
+    clearBit(pieces[piece], sq);
+    clearBit(colorPieces[pieceColor(piece)], sq);
+    clearBit(occupied, sq);
 }
 
-void engine::Bitboard::clearBit(uint64_t& bb, int sq)
+void engine::Bitboard::movePiece(Square from, Square to)
 {
-    bb &= ~(1ULL << sq);
-}
+    const Piece piece = board[from];
 
-bool engine::Bitboard::getBit(uint64_t bb, int sq) const
-{
-    return bb & (1ULL << sq);
-}
-
-engine::Piece engine::Bitboard::getPieceAt(int sq) const
-{
-    return board[sq];
-}
-
-engine::Piece engine::Bitboard::getPieceAt(const std::string& square) const
-{
-    return board[squareToBit(square)];
-}
-
-engine::bitboardType engine::Bitboard::getPieceBitboard(Piece piece) const
-{
-    return pieces[piece];
-}
-
-engine::bitboardType engine::Bitboard::getWhitePieces() const
-{
-    return whitePieces;
-}
-
-engine::bitboardType engine::Bitboard::getBlackPieces() const
-{
-    return blackPieces;
-}
-
-engine::bitboardType engine::Bitboard::getOccupied() const
-{
-    return occupied;
-}
-
-engine::bitboardType engine::Bitboard::getEmpty() const
-{
-    return empty;
+    if (piece == EMPTY)
+        return;
+    removePiece(from);
+    putPiece(piece, to);
 }
 
 void engine::Bitboard::makeMove(const Move& move)
 {
-    int from     = squareToBit(move.from);
-    int to       = squareToBit(move.to);
-    Piece moving = board[from];
-
+    const Piece moving = board[move.from];
     if (moving == EMPTY)
         return;
 
-    clearBit(pieces[moving], from);
+    if (move.enPassant)
+        removePiece(makeSquare(fileOf(move.to), rankOf(move.from)));
+    else
+        removePiece(move.to);
+
+    movePiece(move.from, move.to);
+
+    if (move.promotion) {
+        removePiece(move.to);
+        putPiece(makePiece(sideToMove, move.promotionPiece), move.to);
+    }
 
     if (move.castle) {
-        int rookFrom = -1;
-        int rookTo   = -1;
-        Piece rook   = moving == WK ? WR : BR;
-
-        if (to > from) {
-            rookFrom = moving == WK ? squareToBit("h1") : squareToBit("h8");
-            rookTo   = moving == WK ? squareToBit("f1") : squareToBit("f8");
-        } else {
-            rookFrom = moving == WK ? squareToBit("a1") : squareToBit("a8");
-            rookTo   = moving == WK ? squareToBit("d1") : squareToBit("d8");
-        }
-
-        clearBit(pieces[rook], rookFrom);
-        setBit(pieces[rook], rookTo);
-        board[rookTo] = rook;
-        board[rookFrom] = EMPTY;
+        for (const Castling& castling : CASTLINGS[sideToMove])
+            if (castling.kingTo == move.to)
+                movePiece(castling.rookFrom, castling.rookTo);
     }
 
-    if (board[to] != EMPTY)
-        clearBit(pieces[board[to]], to);
+    castlingRights &= ~(castlingRightsLost(move.from) | castlingRightsLost(move.to));
 
-    Piece placedPiece = moving;
-    if (move.promotion)
-        placedPiece = promotionToPiece(moving, move.promotionPiece);
+    enPassantSquare = NO_SQUARE;
+    if (pieceType(moving) == PAWN && std::abs(move.to - move.from) == 16)
+        enPassantSquare = (move.from + move.to) / 2;
 
-    setBit(pieces[placedPiece], to);
-
-    board[to] = placedPiece;
-    board[from] = EMPTY;
-    whitePieces = pieces[WP] | pieces[WN] | pieces[WB] | pieces[WR] | pieces[WQ] | pieces[WK];
-    blackPieces = pieces[BP] | pieces[BN] | pieces[BB] | pieces[BR] | pieces[BQ] | pieces[BK];
-    occupied = whitePieces | blackPieces;
-    empty = ~occupied;
+    sideToMove = ~sideToMove;
 }
 
-void engine::Bitboard::loadFEN(const std::string& fen)
+void engine::Bitboard::loadFEN(std::string_view fen)
 {
-    std::vector<std::string> splitFen = utils::Helpers::splitString(fen, "/ ");
-    char rank = '8';
-    char file = 'a';
+    std::istringstream iss{std::string{fen}};
+    std::string placement;
+    std::string side = "w";
+    std::string castling = "-";
+    std::string enPassant = "-";
+    int file = 0;
+    int rank = 7;
 
-    std::fill(std::begin(pieces), std::end(pieces), 0ULL);
-    std::fill(std::begin(board), std::end(board), EMPTY);
-    for (const auto& fenElm : splitFen) {
-        if (fenElm == "w" || fenElm == "b")
-            break;
-        file = 'a';
-        for (char c : fenElm) {
-            if (std::isdigit(c)) {
-                file += c - '0';
-                continue;
-            }
-            Piece piece = fenToPiece(c);
-            if (piece == EMPTY)
-                continue;
-            std::string square{file, rank};
-            int bit = squareToBit(square);
-            board[bit] = piece;
-            setBit(pieces[piece], bit);
+    iss >> placement >> side >> castling >> enPassant;
+    clear();
+    for (const char c : placement) {
+        if (c == '/') {
+            --rank;
+            file = 0;
+        } else if (std::isdigit(static_cast<unsigned char>(c)) != 0) {
+            file += c - '0';
+        } else {
+            const Piece piece = fenToPiece(c);
+            if (piece != EMPTY && isOnBoard(file, rank))
+                putPiece(piece, makeSquare(file, rank));
             ++file;
         }
-        --rank;
     }
-    whitePieces = pieces[WP] | pieces[WN] | pieces[WB] | pieces[WR] | pieces[WQ] | pieces[WK];
-    blackPieces = pieces[BP] | pieces[BN] | pieces[BB] | pieces[BR] | pieces[BQ] | pieces[BK];
-    occupied = whitePieces | blackPieces;
-    empty = ~occupied;
-    // printBoard();
+
+    sideToMove = side == "b" ? BLACK : WHITE;
+
+    for (const char c : castling)
+        castlingRights |= fenToCastlingRight(c);
+    for (const Color color : {WHITE, BLACK})
+        for (const Castling& right : CASTLINGS[color])
+            if (board[right.kingFrom] != makePiece(color, KING) || board[right.rookFrom] != makePiece(color, ROOK))
+                castlingRights &= ~right.right;
+
+    if (enPassant.size() == 2 && isOnBoard(enPassant[0] - 'a', enPassant[1] - '1'))
+        enPassantSquare = squareToBit(enPassant);
 }
 
-void engine::Bitboard::printBoard()
+void engine::Bitboard::printBoard() const
 {
-    static constexpr char pieceChar[] = {
+    static constexpr std::array<char, PIECE_COUNT> pieceChar = {
         '.', // EMPTY
         'P', 'N', 'B', 'R', 'Q', 'K',
-        'p', 'n', 'b', 'r', 'q', 'k'
+        'p', 'n', 'b', 'r', 'q', 'k',
     };
-    static constexpr const char* pieceNames[] = {
+    static constexpr std::array<std::string_view, PIECE_COUNT> pieceNames = {
         "EMPTY",
         "WP", "WN", "WB", "WR", "WQ", "WK",
-        "BP", "BN", "BB", "BR", "BQ", "BK"
+        "BP", "BN", "BB", "BR", "BQ", "BK",
     };
 
     std::cout << "=== Board ===" << std::endl;
     for (int rank = 7; rank >= 0; --rank) {
         std::cout << rank + 1 << " ";
-        for (int file = 0; file < 8; ++file) {
-            int sq = rank * 8 + file;
-            std::cout << pieceChar[board[sq]] << ' ';
-        }
+        for (int file = 0; file < 8; ++file)
+            std::cout << pieceChar[board[makeSquare(file, rank)]] << ' ';
         std::cout << std::endl;
     }
     std::cout << "  a b c d e f g h" << std::endl;
@@ -225,10 +195,8 @@ void engine::Bitboard::printBoard()
         std::cout << pieceNames[p] << ":" << std::endl;
         for (int rank = 7; rank >= 0; --rank) {
             std::cout << rank + 1 << " ";
-            for (int file = 0; file < 8; ++file) {
-                int sq = rank * 8 + file;
-                std::cout << (getBit(pieces[p], sq) ? "1 " : ". ");
-            }
+            for (int file = 0; file < 8; ++file)
+                std::cout << (getBit(pieces[p], makeSquare(file, rank)) ? "1 " : ". ");
             std::cout << std::endl;
         }
         std::cout << "  a b c d e f g h" << std::endl << std::endl;

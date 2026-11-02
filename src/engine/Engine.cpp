@@ -6,41 +6,21 @@
  * @date 2026-07-21
 **/
 
-#include "Engine.hpp"
-#include <algorithm>
+#include "engine/Engine.hpp"
+#include "engine/Types.hpp"
+#include "engine/moveGeneration/MoveGenerator.hpp"
 #include <string>
 #include <vector>
 
-namespace {
-
-constexpr char promotionToUciChar(engine::piecePromotion promotion)
+std::vector<engine::Move> engine::Engine::getLegalMoves() const
 {
-    switch (promotion) {
-        case engine::QUEEN:  return 'q';
-        case engine::ROOK:   return 'r';
-        case engine::BISHOP: return 'b';
-        case engine::KNIGHT: return 'n';
-        default:             return '\0';
-    }
+    return movegen::generateMoves(this->board);
 }
 
-constexpr std::string moveToText(const engine::Move& move)
-{
-    std::string text = move.from + move.to;
-    if (move.promotion) {
-        const char promo = promotionToUciChar(move.promotionPiece);
-        if (promo != '\0')
-            text.push_back(promo);
-    }
-    return text;
-}
-
-}
-
-std::string engine::Engine::search(int n, bool whiteToMove)
+std::string engine::Engine::search(int n) const
 {
     (void)n;
-    const std::vector<Move> moves = this->generator.generateLegalMoves(this->board, whiteToMove);
+    const std::vector<Move> moves = this->getLegalMoves();
 
     if (moves.empty())
         return "";

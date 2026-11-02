@@ -10,23 +10,25 @@
 #define ENGINE_HPP_
 
 #include "engine/Bitboard.hpp"
-#include "engine/MoveGenerator.hpp"
+#include "engine/Types.hpp"
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace engine {
 
 class Engine {
     public:
-        std::string search(int n, bool whiteToMove);
+        [[nodiscard]] std::string search(int n) const;
 
-        void loadFen(const std::string& fen) { this->board.loadFEN(fen); }   
+        void loadFen(std::string_view fen) { this->board.loadFEN(fen); }
         void makeMove(const Move& move) { this->board.makeMove(move); }
-        Piece getPieceAt(const std::string& square) const { return this->board.getPieceAt(square); }
+        [[nodiscard]] std::vector<Move> getLegalMoves() const;
     private:
         Bitboard board;
-        MoveGenerator generator;
         // Evaluator eval; // taking a bitboard and evaluates it (one public method that takes bitboard and returns int)
 };
 
-}
+} // namespace engine
 
 #endif /* ENGINE_HPP_ */

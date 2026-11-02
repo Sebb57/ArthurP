@@ -7,44 +7,29 @@
 **/
 
 #include "Protocol.hpp"
-#include "utils/utils.hpp"
+#include "engine/Engine.hpp"
+#include "engine/Types.hpp"
+#include <algorithm>
 #include <iostream>
+#include <optional>
 #include <sstream>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
 
-engine::Move parseUciMove(const std::string& text, const engine::Engine& boardEngine)
+std::optional<engine::Move> parseUciMove(std::string_view text, const engine::Engine& boardEngine)
 {
-    engine::Move move;
+    const std::vector<engine::Move> moves = boardEngine.getLegalMoves();
+    const auto found = std::ranges::find(moves, text, engine::moveToText);
 
-    if (text.size() < 4)
-        return move;
-
-    move.from = text.substr(0, 2);
-    move.to = text.substr(2, 2);
-
-    if (text.size() == 5) {
-        move.promotion = true;
-        switch (text[4]) {
-            case 'q': move.promotionPiece = engine::QUEEN; break;
-            case 'r': move.promotionPiece = engine::ROOK; break;
-            case 'b': move.promotionPiece = engine::BISHOP; break;
-            case 'n': move.promotionPiece = engine::KNIGHT; break;
-            default:  move.promotion = false; break;
-        }
-    }
-
-    const engine::Piece movingPiece = boardEngine.getPieceAt(move.from);
-    if ((movingPiece == engine::WK || movingPiece == engine::BK) &&
-        ((move.from == "e1" && (move.to == "g1" || move.to == "c1")) ||
-         (move.from == "e8" && (move.to == "g8" || move.to == "c8")))) {
-        move.castle = true;
-    }
-    return move;
+    if (found == moves.end())
+        return std::nullopt;
+    return *found;
 }
 
-}
+} // namespace
 
 protocol::UCI::UCI()
 {
@@ -84,37 +69,36 @@ void protocol::UCI::ucinewgame(std::string&)
 
 void protocol::UCI::position(std::string& args)
 {
-    std::string token, fen;
+    std::string token;
     std::istringstream iss(args);
 
     iss >> token;
     if (token == "startpos") {
-        fen = protocol::StartFEN;
-        this->whiteToMove = true;
-        iss >> token;
+        this->engine.loadFen(engine::START_FEN);
+        iss >> token; // "moves"
     } else if (token == "fen") {
-        std::string sideToMove = "w";
-        size_t pos = token.find(' ');
-
-        if (pos != std::string::npos)
-            sideToMove = token[pos + 1];
-        this->whiteToMove = (sideToMove == "w");
+        std::string fen;
+        while (iss >> token && token != "moves") {
+            fen += token;
+            fen += ' ';
+        }
         this->engine.loadFen(fen);
     } else {
         return;
     }
 
     while (iss >> token) {
-        engine::Move move = parseUciMove(token, this->engine);
-        this->engine.makeMove(move);
-        this->whiteToMove = !this->whiteToMove;
+        const std::optional<engine::Move> move = parseUciMove(token, this->engine);
+        if (!move)
+            return; // unknown or illegal move: keep the position reached so far
+        this->engine.makeMove(*move);
     }
 }
 
 void protocol::UCI::go(std::string& args)
 {
     (void)args;
-    const std::string bestMove = this->engine.search(0, this->whiteToMove);
+    const std::string bestMove = this->engine.search(0);
     std::cout << "bestmove";
     if (!bestMove.empty())
         std::cout << ' ' << bestMove;

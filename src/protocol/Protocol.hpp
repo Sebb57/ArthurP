@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <utility>
 
 namespace protocol {
 
@@ -51,10 +52,10 @@ class AProtocol : public IProtocol {
         bool debugRun = false;
 };
 
-class UCI : public AProtocol {
+class UCI final : public AProtocol {
     public:
         UCI();
-        ~UCI() = default;
+        ~UCI() final = default;
 
     private:
         void debug(std::string&);
@@ -74,14 +75,14 @@ class ProtocolFactory {
             protected:
                 std::string _msg;
             public:
-                FactoryException(std::string msg) : _msg(msg) {}
+                explicit FactoryException(std::string msg) : _msg(std::move(msg)) {}
 
-                virtual const char* what() const noexcept { return this->_msg.c_str(); }
+                [[nodiscard]] const char* what() const noexcept override { return this->_msg.c_str(); }
         };
 
         class UnknownProtocol : public FactoryException {
             public:
-                UnknownProtocol(std::string& p) : FactoryException("Unknown protocol : '" + p + "'") {}
+                explicit UnknownProtocol(const std::string& p) : FactoryException("Unknown protocol : '" + p + "'") {}
         };
 };
     
