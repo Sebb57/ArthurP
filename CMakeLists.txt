@@ -50,7 +50,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME}
     PRIVATE core
 )
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR MINGW)
     target_link_options(${PROJECT_NAME} PRIVATE -static)
 endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES 

@@ -27,9 +27,52 @@ jobs:
           cmake --build build -j
           mv ArthurP "$BINARY"
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: ArthurP-linux-x86_64
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      BINARY: ArthurP-windows-x86_64.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DARTHURP_ARCH=x86-64-v2
+          cmake --build build
+          mv ArthurP.exe "$BINARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: ArthurP-windows-x86_64.exe
+
+  publish:
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
       - name: Publish latest release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest "$BINARY" --prerelease --target "$GITHUB_SHA" --title "Latest build" --notes "Built from $GITHUB_SHA"
+          gh release create latest ArthurP-linux-x86_64 ArthurP-windows-x86_64.exe --prerelease --target "$GITHUB_SHA" --title "Latest build" --notes "Built from $GITHUB_SHA"
