@@ -1,0 +1,35 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    env:
+      CXX: g++-14
+      BINARY: ArthurP-linux-x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DARTHURP_ARCH=x86-64-v2
+          cmake --build build -j
+          mv ArthurP "$BINARY"
+
+      - name: Publish latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest "$BINARY" --prerelease --target "$GITHUB_SHA" --title "Latest build" --notes "Built from $GITHUB_SHA"

@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(ARTHURP_ARCH "native" CACHE STRING "Value passed to -march")
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
@@ -23,7 +25,7 @@ set(COMPILE_FLAGS
     -Wextra
     -Werror
     -O3
-    -march=native
+    -march=${ARTHURP_ARCH}
 )
 
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
@@ -48,6 +50,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME}
     PRIVATE core
 )
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(${PROJECT_NAME} PRIVATE -static)
+endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES 
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
