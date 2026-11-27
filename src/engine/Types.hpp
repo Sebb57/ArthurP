@@ -114,6 +114,26 @@ inline constexpr int PIECE_COUNT = 13;
 [[nodiscard]] constexpr Piece makePiece(Color color, PieceType type) { return static_cast<Piece>(static_cast<int>(WP) + type + (color * PIECE_TYPE_COUNT)); }
 [[nodiscard]] constexpr Color pieceColor(Piece piece) { return piece >= BP ? BLACK : WHITE; }
 [[nodiscard]] constexpr PieceType pieceType(Piece piece) { return static_cast<PieceType>((piece - WP) % PIECE_TYPE_COUNT); }
+[[nodiscard]] constexpr int pieceValue(Piece piece) {
+    switch (piece) {
+        case WP:
+        case BP:
+            return 1;
+        case WN:
+        case BN:
+        case WB:
+        case BB:
+            return 3;
+        case WR:
+        case BR:
+            return 5;
+        case WQ:
+        case BQ:
+            return 9;
+        default:
+            return 0;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Castling

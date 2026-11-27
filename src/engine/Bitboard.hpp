@@ -24,6 +24,7 @@ class Bitboard {
         void makeMove(const Move& move);
 
         [[nodiscard]] Piece getPieceAt(Square sq) const { return board[sq]; }
+        [[nodiscard]] const std::array<Piece, SQUARE_COUNT>& getAllPieces() const { return this->board; }
 
         [[nodiscard]] bitboardType getPieceBitboard(Piece piece) const { return pieces[piece]; }
         [[nodiscard]] bitboardType getPieceBitboard(Color color, PieceType type) const { return pieces[makePiece(color, type)]; }

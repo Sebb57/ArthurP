@@ -11,6 +11,7 @@
 
 #include "engine/Bitboard.hpp"
 #include "engine/Types.hpp"
+#include "eval/Eval.hpp"
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,7 +27,7 @@ class Engine {
         [[nodiscard]] std::vector<Move> getLegalMoves() const;
     private:
         Bitboard board;
-        // Evaluator eval; // taking a bitboard and evaluates it (one public method that takes bitboard and returns int)
+        eval::Evaluator eval;
 };
 
 } // namespace engine

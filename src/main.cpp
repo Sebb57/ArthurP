@@ -8,12 +8,14 @@
 
 #include "protocol/Protocol.hpp"
 #include "constants.hpp"
+#include "utils/Logger.hpp"
 #include <iostream>
 #include <string>
 
 int main (int argc, char *argv[])
 {
     try {
+        utils::Logger::get().open(constants::LOG_FILE);
         std::string protocolName; 
         std::getline(std::cin, protocolName);
         auto protocol = protocol::ProtocolFactory::createProtocol(protocolName);
