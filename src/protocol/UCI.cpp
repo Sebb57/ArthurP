@@ -98,7 +98,7 @@ void protocol::UCI::position(std::string& args)
 void protocol::UCI::go(std::string& args)
 {
     (void)args;
-    const std::string bestMove = this->engine.search(0);
+    const std::string bestMove = this->engine.search(7);
     std::cout << "bestmove";
     if (!bestMove.empty())
         std::cout << ' ' << bestMove;

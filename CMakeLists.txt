@@ -5,12 +5,25 @@ project(ArthurP LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_ERROR)
+if(IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+else()
+    message(WARNING "LTO not supported: ${IPO_ERROR}")
+endif()
+
 set(COMPILE_FLAGS
     -Wall
     -Wextra
     -Werror
-    -Ofast
-    -flto=auto
+    -O3
+    -march=native
 )
 
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
@@ -29,7 +42,7 @@ target_compile_options(core PRIVATE
 )
 
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_compile_options(core PRIVATE
+target_compile_options(${PROJECT_NAME} PRIVATE
     ${COMPILE_FLAGS}
 )
 target_link_libraries(${PROJECT_NAME}

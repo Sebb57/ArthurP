@@ -21,13 +21,11 @@ public:
     ~Evaluator() = default;
 
     // temporary function as long as i don't have a real evaluation function
-    int evaluate(const engine::Bitboard& board, const engine::Move& move) const {
-        engine::Bitboard copy = board;
-        const engine::Color us = copy.getSideToMove();
+    [[nodiscard]] int evaluate(const engine::Bitboard& board) const {
+        const engine::Color us = board.getSideToMove();
         int score = 0;
 
-        copy.makeMove(move);
-        for (const auto piece : copy.getAllPieces()) {
+        for (const auto piece : board.getAllPieces()) {
             const int value = engine::pieceValue(piece);
             if (value == 0)
                 continue;
