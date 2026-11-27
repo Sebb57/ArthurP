@@ -6,11 +6,13 @@
  * @date 2026-07-14
 **/
 
-#include "Protocol.hpp"
+#include "protocol/UCI.hpp"
 #include "engine/Engine.hpp"
 #include "engine/Types.hpp"
 #include <algorithm>
+#include <cstdint>
 #include <iostream>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -18,6 +20,62 @@
 #include <vector>
 
 namespace {
+
+void send(const std::string& line)
+{
+    static std::mutex outputMutex;
+    const std::scoped_lock lock(outputMutex);
+
+    std::cout << line << std::endl;
+}
+
+template <typename T>
+T readNumber(std::istringstream& iss)
+{
+    T value{};
+
+    iss >> value;
+    return value;
+}
+
+engine::SearchLimits parseGo(const std::string& args)
+{
+    engine::SearchLimits limits;
+    std::string token;
+    std::istringstream iss(args);
+
+    while (iss >> token) {
+        if (token == "wtime")
+            limits.time[engine::WHITE] = readNumber<std::int64_t>(iss);
+        else if (token == "btime")
+            limits.time[engine::BLACK] = readNumber<std::int64_t>(iss);
+        else if (token == "winc")
+            limits.increment[engine::WHITE] = readNumber<std::int64_t>(iss);
+        else if (token == "binc")
+            limits.increment[engine::BLACK] = readNumber<std::int64_t>(iss);
+        else if (token == "movestogo")
+            limits.movesToGo = readNumber<int>(iss);
+        else if (token == "movetime")
+            limits.moveTime = readNumber<std::int64_t>(iss);
+        else if (token == "depth")
+            limits.depth = readNumber<int>(iss);
+        else if (token == "nodes")
+            limits.nodes = readNumber<std::uint64_t>(iss);
+        else if (token == "infinite" || token == "ponder") // no pondering yet so will think until stop
+            limits.infinite = true;
+    }
+    if (!limits.time[engine::WHITE] && !limits.time[engine::BLACK] && !limits.moveTime && !limits.depth && !limits.nodes)
+        limits.infinite = true;
+    return limits;
+}
+
+void sendInfo(const engine::SearchInfo& info)
+{
+    const std::string score = info.mateIn ? "mate " + std::to_string(*info.mateIn) : "cp " + std::to_string(info.score);
+    const std::uint64_t nps = info.timeMs > 0 ? info.nodes * 1000 / static_cast<std::uint64_t>(info.timeMs) : 0;
+
+    send("info depth " + std::to_string(info.depth) + " score " + score + " nodes " + std::to_string(info.nodes) + " nps " + std::to_string(nps) + " time " + std::to_string(info.timeMs) + " pv " + engine::moveToText(info.bestMove));
+}
 
 std::optional<engine::Move> parseUciMove(std::string_view text, const engine::Engine& boardEngine)
 {
@@ -38,13 +96,26 @@ protocol::UCI::UCI()
     protocolMap["ucinewgame"] = bindMember<UCI, &UCI::ucinewgame>(this);
     protocolMap["position"] = bindMember<UCI, &UCI::position>(this);
     protocolMap["go"] = bindMember<UCI, &UCI::go>(this);
+    protocolMap["stop"] = bindMember<UCI, &UCI::stop>(this);
+    protocolMap["quit"] = bindMember<UCI, &UCI::quit>(this);
 
-    protocolMap["isready"] = [](std::string&) { std::cout << "readyok" << std::endl; };
-    protocolMap["quit"] = [this](std::string&) { this->running = false; };
+    protocolMap["isready"] = [](std::string&) { send("readyok"); };
 
-    std::cout << "id name ArthurP" << std::endl;
-    std::cout << "id author Sébastien Doussang" << std::endl;
-    std::cout << "uciok" << std::endl;
+    send("id name ArthurP");
+    send("id author Sébastien Doussang");
+    send("uciok");
+}
+
+protocol::UCI::~UCI()
+{
+    this->engine.stop();
+    this->waitForSearch();
+}
+
+void protocol::UCI::waitForSearch()
+{
+    if (this->searchThread.joinable())
+        this->searchThread.join();
 }
 
 void protocol::UCI::debug(std::string& arg)
@@ -63,6 +134,7 @@ void protocol::UCI::setoption(std::string& args)
 
 void protocol::UCI::ucinewgame(std::string&)
 {
+    this->waitForSearch();
     //TODO: clear engine position and reasoning
 //  this->engine.clear();
 }
@@ -72,6 +144,7 @@ void protocol::UCI::position(std::string& args)
     std::string token;
     std::istringstream iss(args);
 
+    this->waitForSearch();
     iss >> token;
     if (token == "startpos") {
         this->engine.loadFen(engine::START_FEN);
@@ -97,24 +170,28 @@ void protocol::UCI::position(std::string& args)
 
 void protocol::UCI::go(std::string& args)
 {
-    (void)args;
-    const std::string bestMove = this->engine.search(7);
-    std::cout << "bestmove";
-    if (!bestMove.empty())
-        std::cout << ' ' << bestMove;
-    std::cout << std::endl;
+    const engine::SearchLimits limits = parseGo(args);
+
+    this->waitForSearch();
+    this->engine.clearStop();
+    this->searchThread = std::jthread([this, limits] {
+        const std::string bestMove = this->engine.search(limits, sendInfo);
+        send(bestMove.empty() ? "bestmove" : "bestmove " + bestMove);
+    });
 }
 
 void protocol::UCI::stop(std::string& args)
 {
     (void)args;
-    //TODO: call engine go and let him do it 
-//  engine.stopCalculating();
-//  std::cout << "bestmove" this->engine.getBestMove();
-//  if (this->ponderEnabled) {
-//      std::cout << " ponder " << engine.getPonder();
-//  }
-//  std::cout << std::endl;
+    this->engine.stop();
+}
+
+void protocol::UCI::quit(std::string& args)
+{
+    (void)args;
+    this->engine.stop();
+    this->waitForSearch();
+    this->running = false;
 }
 
 void protocol::UCI::ponderhit(std::string& args)

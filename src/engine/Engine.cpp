@@ -9,34 +9,21 @@
 #include "engine/Engine.hpp"
 #include "engine/Types.hpp"
 #include "engine/moveGeneration/MoveGenerator.hpp"
+#include "engine/search/Search.hpp"
+#include "engine/search/TimeManager.hpp"
 #include "utils/Logger.hpp"
 #include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace {
 
-constexpr int INF = 1000000;
-constexpr int MATE = 900000;
-
-int negamax(const engine::Bitboard& board, int depth, int alpha, int beta, int ply, const eval::Evaluator& eval)
+std::int64_t elapsedMs(std::chrono::steady_clock::time_point start)
 {
-    if (depth == 0)
-        return eval.evaluate(board);
-
-    const std::vector<engine::Move> moves = engine::movegen::generateMoves(board);
-    if (moves.empty())
-        return engine::movegen::isInCheck(board, board.getSideToMove()) ? -MATE + ply : 0;
-
-    for (const auto& move : moves) {
-        engine::Bitboard next = board;
-        next.makeMove(move);
-        const int score = -negamax(next, depth - 1, -beta, -alpha, ply + 1, eval);
-        if (score >= beta)
-            return score;
-        alpha = std::max(alpha, score);
-    }
-    return alpha;
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
 }
 
 } // namespace
@@ -46,30 +33,47 @@ std::vector<engine::Move> engine::Engine::getLegalMoves() const
     return movegen::generateMoves(this->board);
 }
 
-std::string engine::Engine::search(int depth) const
+std::string engine::Engine::search(const SearchLimits& limits, const InfoCallback& onInfo) const
 {
     auto& logger = utils::Logger::get();
-    const std::vector<Move> moves = this->getLegalMoves();
-    std::string bestMove = "";
-    int bestMoveScore = -INF;
+    const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    std::vector<Move> moves = this->getLegalMoves();
+    const std::optional<search::TimeBudget> budget = search::computeBudget(limits, this->board.getSideToMove());
+    const int maxDepth = std::clamp(limits.depth.value_or(MAX_DEPTH), 1, MAX_DEPTH);
+    search::SearchContext ctx{.eval = &this->eval, .stopRequested = &this->stopRequested, .deadline = std::nullopt, .maxNodes = limits.nodes,};
 
-    logger.debug("search(depth={}): {} legal moves", depth, moves.size());
+    if (budget && !limits.infinite)
+        ctx.deadline = start + std::chrono::milliseconds(budget->hardMs);
+    logger.debug("search: {} legal moves, max depth {}, budget {}ms", moves.size(), maxDepth, budget ? budget->hardMs : -1);
 
     if (moves.empty()) {
         logger.warn("search: no legal moves");
         return "";
     }
-    for (const auto& move : moves) {
-        Bitboard next = this->board;
-        next.makeMove(move);
-        const int current = -negamax(next, std::max(depth - 1, 0), -INF, -bestMoveScore, 1, this->eval);
-        logger.debug("  {} -> {}", moveToText(move), current);
-        if (current > bestMoveScore || bestMove.empty()) {
-            bestMoveScore = current;
-            bestMove = moveToText(move);
-            logger.debug("    new best: {} ({})", bestMove, bestMoveScore);
+
+    Move bestMove = moves.front();
+    int bestScore = -search::INF;
+    for (int depth = 1; depth <= maxDepth; depth++) {
+        if (const std::optional<Move> iterationBest = search::searchRoot(this->board, moves, depth, bestScore, ctx)) {
+            bestMove = *iterationBest;
+            const auto found = std::ranges::find(moves, bestMove);
+            std::rotate(moves.begin(), found, found + 1);
         }
+        if (ctx.aborted)
+            break;
+
+        const std::int64_t elapsed = elapsedMs(start);
+        logger.debug("  depth {}: {} ({}) nodes={} time={}ms", depth, moveToText(bestMove), bestScore, ctx.nodes, elapsed);
+        if (onInfo)
+            onInfo(SearchInfo{.depth = depth, .score = bestScore, .mateIn = search::mateIn(bestScore), .nodes = ctx.nodes, .timeMs = elapsed, .bestMove = bestMove,});
+
+        if (limits.infinite)
+            continue;
+        if (budget && (moves.size() == 1 || elapsed * 2 >= budget->softMs))
+            break;
+        if (search::mateIn(bestScore))
+            break;
     }
-    logger.info("search: bestmove={} score={}", bestMove, bestMoveScore);
-    return bestMove;
+    logger.info("search: bestmove={} score={} nodes={} time={}ms", moveToText(bestMove), bestScore, ctx.nodes, elapsedMs(start));
+    return moveToText(bestMove);
 }

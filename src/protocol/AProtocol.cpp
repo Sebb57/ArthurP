@@ -1,23 +1,15 @@
 /**
- * @file Protocol.cpp
+ * @file AProtocol.cpp
  * @brief file handling protocol main loop and parsing
  *
  * @author Seb
  * @date 2026-07-14
 **/
 
-#include "Protocol.hpp"
+#include "protocol/AProtocol.hpp"
 #include <iostream>
-#include <memory>
 #include <sstream>
 #include <string>
-
-std::unique_ptr<protocol::IProtocol> protocol::ProtocolFactory::createProtocol(std::string& firstInput)
-{
-    if (firstInput == "uci")
-        return std::make_unique<protocol::UCI>();
-    throw UnknownProtocol(firstInput);
-}
 
 void protocol::AProtocol::processLine(std::string& line)
 {
